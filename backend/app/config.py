@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(alias="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4", alias="OPENAI_MODEL")
     openai_temperature: float = Field(default=0.7, alias="OPENAI_TEMPERATURE")
+    openai_classifier_model: str = Field(
+        default="gpt-4o-mini",
+        alias="OPENAI_CLASSIFIER_MODEL",
+    )
 
     # CrewAI settings
     crewai_verbose: bool = Field(default=True, alias="CREWAI_VERBOSE")

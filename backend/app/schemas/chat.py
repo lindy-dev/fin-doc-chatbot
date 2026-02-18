@@ -18,7 +18,7 @@ class ChatRequest(BaseModel):
 class ChatStreamEvent(BaseModel):
     """Base schema for SSE stream events."""
 
-    type: Literal["status", "chunk", "complete", "error"] = Field(
+    type: Literal["status", "progress", "chunk", "complete", "error"] = Field(
         ..., description="Event type"
     )
     content: str = Field(..., description="Event content")

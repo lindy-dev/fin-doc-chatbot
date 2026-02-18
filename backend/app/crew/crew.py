@@ -22,13 +22,18 @@ class FinancialAnalysisCrew:
     def __init__(self) -> None:
         self.crew: Optional[Crew] = None
 
-    def _create_crew(self, query: str, context: str = "") -> Crew:
+    def _create_crew(
+        self,
+        query: str,
+        context: str = "",
+        step_callback: Optional[Callable[[object], None]] = None,
+    ) -> Crew:
         """Create the crew with tasks for the query."""
         # Create tasks
-        data_task = create_data_analysis_task(query, context)
-        advisory_task = create_advisory_task(query)
-        risk_task = create_risk_assessment_task(query)
-        synthesis_task = create_final_synthesis_task(query)
+        data_task = create_data_analysis_task(query, context, step_callback=step_callback)
+        advisory_task = create_advisory_task(query, step_callback=step_callback)
+        risk_task = create_risk_assessment_task(query, step_callback=step_callback)
+        synthesis_task = create_final_synthesis_task(query, step_callback=step_callback)
 
         # Create crew with sequential process
         return Crew(
@@ -52,6 +57,7 @@ class FinancialAnalysisCrew:
         query: str,
         context: str = "",
         progress_callback: Optional[Callable[[str], None]] = None,
+        step_callback: Optional[Callable[[object], None]] = None,
     ) -> str:
         """Run financial analysis with the crew.
 
@@ -67,7 +73,7 @@ class FinancialAnalysisCrew:
             progress_callback("Initializing analysis crew...")
 
         # Create crew
-        crew = self._create_crew(query, context)
+        crew = self._create_crew(query, context, step_callback=step_callback)
 
         if progress_callback:
             progress_callback("Starting data analysis...")

@@ -1,5 +1,7 @@
 """CrewAI agent definitions for financial analysis."""
 
+from typing import Callable, Optional
+
 from crewai import Agent
 
 from app.config import get_settings
@@ -9,7 +11,9 @@ DEFAULT_LLM = settings.openai_model
 
 
 
-def create_data_analyst_agent() -> Agent:
+def create_data_analyst_agent(
+    step_callback: Optional[Callable[[object], None]] = None,
+) -> Agent:
     """Create the Data Analyst agent."""
     return Agent(
         role="Financial Data Analyst",
@@ -40,11 +44,13 @@ def create_data_analyst_agent() -> Agent:
         system_template=None,
         prompt_template=None,
         response_template=None,
-        step_callback=None,
+        step_callback=step_callback,
     )
 
 
-def create_financial_advisor_agent() -> Agent:
+def create_financial_advisor_agent(
+    step_callback: Optional[Callable[[object], None]] = None,
+) -> Agent:
     """Create the Financial Advisor agent."""
     return Agent(
         role="Senior Financial Advisor",
@@ -75,11 +81,13 @@ def create_financial_advisor_agent() -> Agent:
         system_template=None,
         prompt_template=None,
         response_template=None,
-        step_callback=None,
+        step_callback=step_callback,
     )
 
 
-def create_risk_assessor_agent() -> Agent:
+def create_risk_assessor_agent(
+    step_callback: Optional[Callable[[object], None]] = None,
+) -> Agent:
     """Create the Risk Assessor agent."""
     return Agent(
         role="Risk Assessment Specialist",
@@ -110,5 +118,5 @@ def create_risk_assessor_agent() -> Agent:
         system_template=None,
         prompt_template=None,
         response_template=None,
-        step_callback=None,
+        step_callback=step_callback,
     )

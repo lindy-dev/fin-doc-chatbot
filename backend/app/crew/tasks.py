@@ -1,5 +1,7 @@
 """CrewAI task definitions for financial analysis."""
 
+from typing import Callable, Optional
+
 from crewai import Task
 
 from app.crew.agents import (
@@ -9,9 +11,13 @@ from app.crew.agents import (
 )
 
 
-def create_data_analysis_task(query: str, context: str = "") -> Task:
+def create_data_analysis_task(
+    query: str,
+    context: str = "",
+    step_callback: Optional[Callable[[object], None]] = None,
+) -> Task:
     """Create task for data analysis."""
-    agent = create_data_analyst_agent()
+    agent = create_data_analyst_agent(step_callback=step_callback)
     context_str = f"\nAdditional Context: {context}" if context else ""
 
     return Task(
@@ -36,9 +42,12 @@ def create_data_analysis_task(query: str, context: str = "") -> Task:
     )
 
 
-def create_advisory_task(query: str) -> Task:
+def create_advisory_task(
+    query: str,
+    step_callback: Optional[Callable[[object], None]] = None,
+) -> Task:
     """Create task for financial advisory."""
-    agent = create_financial_advisor_agent()
+    agent = create_financial_advisor_agent(step_callback=step_callback)
 
     return Task(
         description=f"""Based on the original query and the prior data analysis context,
@@ -64,9 +73,12 @@ def create_advisory_task(query: str) -> Task:
     )
 
 
-def create_risk_assessment_task(query: str) -> Task:
+def create_risk_assessment_task(
+    query: str,
+    step_callback: Optional[Callable[[object], None]] = None,
+) -> Task:
     """Create task for risk assessment."""
-    agent = create_risk_assessor_agent()
+    agent = create_risk_assessor_agent(step_callback=step_callback)
 
     return Task(
         description=f"""Assess the financial risks associated with the original query,
@@ -93,9 +105,12 @@ def create_risk_assessment_task(query: str) -> Task:
     )
 
 
-def create_final_synthesis_task(query: str) -> Task:
+def create_final_synthesis_task(
+    query: str,
+    step_callback: Optional[Callable[[object], None]] = None,
+) -> Task:
     """Create task for final synthesis."""
-    agent = create_financial_advisor_agent()
+    agent = create_financial_advisor_agent(step_callback=step_callback)
 
     return Task(
         description=f"""Synthesize the prior analyses into a comprehensive, coherent response

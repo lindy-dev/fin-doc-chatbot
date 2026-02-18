@@ -77,6 +77,7 @@ curl -X POST http://localhost:8000/chat/stream \
 ### SSE Response Format
 ```
 data: {"type": "status", "content": "Analyzing your query..."}
+data: {"type": "progress", "content": "Starting data analysis...", "metadata": {"agent": "...", "task": "...", "step": "..."}}
 data: {"type": "chunk", "content": "Based on the analysis..."}
 data: {"type": "complete", "content": "Full response...", "metadata": {...}}
 ```
@@ -90,6 +91,7 @@ data: {"type": "complete", "content": "Full response...", "metadata": {...}}
 | `REDIS_URL` | Redis connection string | redis://localhost:6379/0 |
 | `OPENAI_API_KEY` | OpenAI API key | required |
 | `OPENAI_MODEL` | LLM model | gpt-4 |
+| `OPENAI_CLASSIFIER_MODEL` | Router model | gpt-4o-mini |
 | `CACHE_TTL_CONVERSATION` | Conversation cache TTL (seconds) | 3600 |
 | `CACHE_TTL_LLM` | LLM response cache TTL (seconds) | 86400 |
 
