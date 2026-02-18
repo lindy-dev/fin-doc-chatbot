@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import './App.css'
 
 type ChatRole = 'user' | 'assistant' | 'system'
 
@@ -8,10 +7,12 @@ type ChatMessage = {
   role: ChatRole
   content: string
   createdAt: string
+  thinkingLog?: string
+  isThinkingOpen?: boolean
 }
 
 type SseEvent = {
-  type: 'status' | 'chunk' | 'complete'
+  type: 'status' | 'progress' | 'chunk' | 'complete'
   content: string
   metadata?: Record<string, unknown>
   conversation_id?: string
@@ -28,7 +29,8 @@ type HistoryResponse = {
   messages: HistoryMessage[]
 }
 
-const API_BASE_URL = 'http://localhost:8000'
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
 const SESSION_STORAGE_KEY = 'fin_doc_session_id'
 
 const createMessage = (role: ChatRole, content: string): ChatMessage => ({
@@ -115,9 +117,35 @@ function App() {
     )
   }
 
+  const appendThinkingLog = (line: string) => {
+    setMessages((prev) =>
+      prev.map((message) =>
+        message.id === streamingAssistantId.current
+          ? {
+              ...message,
+              thinkingLog: `${message.thinkingLog ?? ''}${line}\n`,
+            }
+          : message
+      )
+    )
+  }
+
   const handleSseEvent = (event: SseEvent) => {
     if (event.type === 'status') {
       setStatus(event.content)
+      return
+    }
+
+    if (event.type === 'progress') {
+      const agent =
+        typeof event.metadata?.agent === 'string' ? event.metadata.agent : null
+      const task =
+        typeof event.metadata?.task === 'string' ? event.metadata.task : null
+      const step =
+        typeof event.metadata?.step === 'string' ? event.metadata.step : null
+      const prefix = [agent, task, step].filter(Boolean).join(' • ')
+      const line = prefix ? `${prefix}: ${event.content}` : event.content
+      appendThinkingLog(line)
       return
     }
 
@@ -131,8 +159,9 @@ function App() {
       setStatus(null)
       setIsStreaming(false)
       streamingAssistantId.current = null
-      if (event.conversation_id) {
-        setConversationId(event.conversation_id)
+      const conversationIdFromMeta = event.metadata?.conversation_id
+      if (typeof conversationIdFromMeta === 'string') {
+        setConversationId(conversationIdFromMeta)
       }
     }
   }
@@ -165,6 +194,8 @@ function App() {
         role: 'assistant',
         content: '',
         createdAt: new Date().toISOString(),
+        thinkingLog: '',
+        isThinkingOpen: false,
       },
     ])
 
@@ -224,16 +255,18 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <div className="app__left" />
-      <div className="app__right">
-        <header className="chat-header">
+    <div className="grid min-h-screen grid-cols-1 bg-neutral-950 text-slate-100 lg:grid-cols-[1fr_420px]">
+      <div className="hidden bg-black lg:block" />
+      <div className="flex min-h-screen flex-col border-l border-white/10 bg-slate-900 lg:h-screen">
+        <header className="flex items-center justify-between gap-4 border-b border-white/10 px-7 pb-4 pt-6">
           <div>
-            <h1>Financial Document Chat</h1>
-            {status && <p className="chat-status">Status: {status}</p>}
+            <h1 className="text-lg font-semibold">Financial Document Chat</h1>
+            {status && (
+              <p className="mt-1 text-xs text-sky-300">Status: {status}</p>
+            )}
           </div>
           <button
-            className="ghost"
+            className="rounded-full border border-white/20 bg-transparent px-4 py-1.5 text-sm text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={handleDeleteHistory}
             disabled={!conversationId || isStreaming}
           >
@@ -241,35 +274,82 @@ function App() {
           </button>
         </header>
 
-        <div className="chat-messages">
+        <div className="flex-1 overflow-y-auto px-7 py-6">
           {messages.length === 0 && (
-            <div className="chat-empty">
+            <div className="mt-8 text-center text-sm text-slate-400">
               Ask a question about a financial document to get started.
             </div>
           )}
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`chat-message chat-message--${message.role}`}
-            >
-              <div className="chat-bubble">
-                <div className="chat-role">{message.role}</div>
-                <div className="chat-content">{message.content}</div>
+          <div className="flex flex-col gap-4">
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                }`}
+              >
+                <div
+                  className={`max-w-[85%] rounded-2xl border border-white/10 bg-white/10 px-4 py-3 ${
+                    message.role === 'user' ? 'border-blue-600 bg-blue-600' : ''
+                  }`}
+                >
+                  <div className="mb-1 text-[0.65rem] uppercase tracking-[0.2em] text-white/70">
+                    {message.role}
+                  </div>
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {message.content}
+                  </div>
+                  {message.role === 'assistant' && message.thinkingLog && (
+                    <button
+                      type="button"
+                      className="mt-3 inline-flex items-center rounded-full border border-white/20 bg-slate-950/50 px-3 py-1 text-[0.7rem] text-slate-200"
+                      onClick={() =>
+                        setMessages((prev) =>
+                          prev.map((entry) =>
+                            entry.id === message.id
+                              ? {
+                                  ...entry,
+                                  isThinkingOpen: !entry.isThinkingOpen,
+                                }
+                              : entry
+                          )
+                        )
+                      }
+                    >
+                      {message.isThinkingOpen
+                        ? 'Hide thinking'
+                        : 'Show thinking'}
+                    </button>
+                  )}
+                  {message.role === 'assistant' && message.isThinkingOpen && (
+                    <pre className="mt-3 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-slate-950/80 p-3 font-mono text-[0.7rem] text-indigo-200">
+                      {message.thinkingLog || 'No SSE output captured.'}
+                    </pre>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           <div ref={messagesEndRef} />
         </div>
 
-        <form className="chat-input" onSubmit={handleSubmit}>
+        <form
+          className="grid grid-cols-1 gap-3 border-t border-white/10 px-7 py-6 sm:grid-cols-[1fr_auto]"
+          onSubmit={handleSubmit}
+        >
           <textarea
+            className="w-full resize-none rounded-xl border border-white/20 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500/50 disabled:opacity-70"
             placeholder="Ask about Q2 revenue trends..."
             value={input}
             onChange={(event) => setInput(event.target.value)}
             rows={3}
             disabled={isStreaming}
           />
-          <button type="submit" disabled={isSendDisabled}>
+          <button
+            className="self-end rounded-full bg-emerald-400 px-5 py-2 text-sm font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+            type="submit"
+            disabled={isSendDisabled}
+          >
             {isStreaming ? 'Streaming...' : 'Send'}
           </button>
         </form>
