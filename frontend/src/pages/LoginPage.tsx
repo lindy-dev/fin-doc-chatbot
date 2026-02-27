@@ -1,41 +1,41 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import PageShell from '../components/PageShell'
-import { useAuth } from '../services/auth'
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import PageShell from "../components/PageShell";
+import { useAuth } from "../services/auth";
 
 const LoginPage = () => {
-  const navigate = useNavigate()
-  const { login, user } = useAuth()
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const navigate = useNavigate();
+  const { login, user } = useAuth();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) return
-    navigate(user.role === 'admin' ? '/admin' : '/dashboard', { replace: true })
-  }, [navigate, user])
+    if (!user) return;
+    navigate("/chat", { replace: true });
+  }, [navigate, user]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setError(null)
-    setLoading(true)
+    event.preventDefault();
+    setError(null);
+    setLoading(true);
     try {
-      const profile = await login(email, password)
-      navigate(profile.role === 'admin' ? '/admin' : '/dashboard', {
+      await login(email, password);
+      navigate("/chat", {
         replace: true,
-      })
+      });
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed'
-      if (message.includes('not approved')) {
-        setError('Your account is pending approval. Please try again later.')
+      const message = err instanceof Error ? err.message : "Login failed";
+      if (message.includes("not approved")) {
+        setError("Your account is pending approval. Please try again later.");
       } else {
-        setError(message)
+        setError(message);
       }
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <PageShell
@@ -83,11 +83,11 @@ const LoginPage = () => {
           type="submit"
           disabled={loading}
         >
-          {loading ? 'Signing in...' : 'Sign in'}
+          {loading ? "Signing in..." : "Sign in"}
         </button>
       </form>
     </PageShell>
-  )
-}
+  );
+};
 
-export default LoginPage
+export default LoginPage;

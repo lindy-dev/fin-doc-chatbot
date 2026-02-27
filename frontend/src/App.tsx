@@ -1,121 +1,123 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "./services/auth";
 
-type ChatRole = 'user' | 'assistant' | 'system'
+type ChatRole = "user" | "assistant" | "system";
 
 type ChatMessage = {
-  id: string
-  role: ChatRole
-  content: string
-  createdAt: string
-  thinkingLog?: string
-  isThinkingOpen?: boolean
-}
+  id: string;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+  thinkingLog?: string;
+  isThinkingOpen?: boolean;
+};
 
 type SseEvent = {
-  type: 'status' | 'progress' | 'chunk' | 'complete'
-  content: string
-  metadata?: Record<string, unknown>
-  conversation_id?: string
-}
+  type: "status" | "progress" | "chunk" | "complete";
+  content: string;
+  metadata?: Record<string, unknown>;
+  conversation_id?: string;
+};
 
 type HistoryMessage = {
-  role: ChatRole
-  content: string
-  created_at: string
-}
+  role: ChatRole;
+  content: string;
+  created_at: string;
+};
 
 type HistoryResponse = {
-  conversation_id: string
-  messages: HistoryMessage[]
-}
+  conversation_id: string;
+  messages: HistoryMessage[];
+};
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
-const SESSION_STORAGE_KEY = 'fin_doc_session_id'
+  import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+const SESSION_STORAGE_KEY = "fin_doc_session_id";
 
 const createMessage = (role: ChatRole, content: string): ChatMessage => ({
   id: crypto.randomUUID(),
   role,
   content,
   createdAt: new Date().toISOString(),
-})
+});
 
 function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [input, setInput] = useState('')
-  const [status, setStatus] = useState<string | null>(null)
-  const [isStreaming, setIsStreaming] = useState(false)
-  const [conversationId, setConversationId] = useState<string | null>(null)
-  const [sessionId, setSessionId] = useState<string>('')
-  const messagesEndRef = useRef<HTMLDivElement | null>(null)
-  const streamingAssistantId = useRef<string | null>(null)
+  const { logout } = useAuth();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [status, setStatus] = useState<string | null>(null);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string>("");
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const streamingAssistantId = useRef<string | null>(null);
 
   const isSendDisabled = useMemo(
     () => isStreaming || input.trim().length === 0,
-    [isStreaming, input]
-  )
+    [isStreaming, input],
+  );
 
   useEffect(() => {
-    const existing = localStorage.getItem(SESSION_STORAGE_KEY)
+    const existing = localStorage.getItem(SESSION_STORAGE_KEY);
     if (existing) {
-      setSessionId(existing)
-      return
+      setSessionId(existing);
+      return;
     }
-    const generated = crypto.randomUUID()
-    localStorage.setItem(SESSION_STORAGE_KEY, generated)
-    setSessionId(generated)
-  }, [])
+    const generated = crypto.randomUUID();
+    localStorage.setItem(SESSION_STORAGE_KEY, generated);
+    setSessionId(generated);
+  }, []);
 
   useEffect(() => {
-    if (!sessionId) return
+    if (!sessionId) return;
 
     const fetchHistory = async () => {
       try {
         const response = await fetch(
-          `${API_BASE_URL}/chat/history/${sessionId}`
-        )
-        if (!response.ok) return
-        const payload = (await response.json()) as HistoryResponse
-        if (!payload?.messages) return
+          `${API_BASE_URL}/chat/history/${sessionId}`,
+        );
+        if (!response.ok) return;
+        const payload = (await response.json()) as HistoryResponse;
+        if (!payload?.messages) return;
         const hydrated = payload.messages.map((message) => ({
           id: crypto.randomUUID(),
           role: message.role,
           content: message.content,
           createdAt: message.created_at,
-        }))
-        setMessages(hydrated)
-        setConversationId(payload.conversation_id)
+        }));
+        setMessages(hydrated);
+        setConversationId(payload.conversation_id);
       } catch (error) {
-        console.error('Failed to load chat history', error)
+        console.error("Failed to load chat history", error);
       }
-    }
+    };
 
-    fetchHistory()
-  }, [sessionId])
+    fetchHistory();
+  }, [sessionId]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   const updateStreamingMessage = (content: string) => {
     setMessages((prev) =>
       prev.map((message) =>
         message.id === streamingAssistantId.current
           ? { ...message, content }
-          : message
-      )
-    )
-  }
+          : message,
+      ),
+    );
+  };
 
   const appendStreamingChunk = (chunk: string) => {
     setMessages((prev) =>
       prev.map((message) =>
         message.id === streamingAssistantId.current
           ? { ...message, content: message.content + chunk }
-          : message
-      )
-    )
-  }
+          : message,
+      ),
+    );
+  };
 
   const appendThinkingLog = (line: string) => {
     setMessages((prev) =>
@@ -123,140 +125,139 @@ function App() {
         message.id === streamingAssistantId.current
           ? {
               ...message,
-              thinkingLog: `${message.thinkingLog ?? ''}${line}\n`,
+              thinkingLog: `${message.thinkingLog ?? ""}${line}\n`,
             }
-          : message
-      )
-    )
-  }
+          : message,
+      ),
+    );
+  };
 
   const handleSseEvent = (event: SseEvent) => {
-    if (event.type === 'status') {
-      setStatus(event.content)
-      return
+    if (event.type === "status") {
+      setStatus(event.content);
+      return;
     }
 
-    if (event.type === 'progress') {
+    if (event.type === "progress") {
       const agent =
-        typeof event.metadata?.agent === 'string' ? event.metadata.agent : null
+        typeof event.metadata?.agent === "string" ? event.metadata.agent : null;
       const task =
-        typeof event.metadata?.task === 'string' ? event.metadata.task : null
+        typeof event.metadata?.task === "string" ? event.metadata.task : null;
       const step =
-        typeof event.metadata?.step === 'string' ? event.metadata.step : null
-      const prefix = [agent, task, step].filter(Boolean).join(' • ')
-      const line = prefix ? `${prefix}: ${event.content}` : event.content
-      appendThinkingLog(line)
-      return
+        typeof event.metadata?.step === "string" ? event.metadata.step : null;
+      const prefix = [agent, task, step].filter(Boolean).join(" • ");
+      const line = prefix ? `${prefix}: ${event.content}` : event.content;
+      appendThinkingLog(line);
+      return;
     }
 
-    if (event.type === 'chunk') {
-      appendStreamingChunk(event.content)
-      return
+    if (event.type === "chunk") {
+      appendStreamingChunk(event.content);
+      return;
     }
 
-    if (event.type === 'complete') {
-      updateStreamingMessage(event.content)
-      setStatus(null)
-      setIsStreaming(false)
-      streamingAssistantId.current = null
-      const conversationIdFromMeta = event.metadata?.conversation_id
-      if (typeof conversationIdFromMeta === 'string') {
-        setConversationId(conversationIdFromMeta)
+    if (event.type === "complete") {
+      updateStreamingMessage(event.content);
+      setStatus(null);
+      setIsStreaming(false);
+      streamingAssistantId.current = null;
+      const conversationIdFromMeta = event.metadata?.conversation_id;
+      if (typeof conversationIdFromMeta === "string") {
+        setConversationId(conversationIdFromMeta);
       }
     }
-  }
+  };
 
   const parseSseLine = (line: string) => {
-    const trimmed = line.trim()
-    if (!trimmed.startsWith('data:')) return
-    const payload = trimmed.replace(/^data:\s*/, '')
-    if (!payload) return
+    const trimmed = line.trim();
+    if (!trimmed.startsWith("data:")) return;
+    const payload = trimmed.replace(/^data:\s*/, "");
+    if (!payload) return;
     try {
-      const data = JSON.parse(payload) as SseEvent
-      handleSseEvent(data)
+      const data = JSON.parse(payload) as SseEvent;
+      handleSseEvent(data);
     } catch (error) {
-      console.error('Failed to parse SSE chunk', error)
+      console.error("Failed to parse SSE chunk", error);
     }
-  }
+  };
 
   const streamChat = async (message: string) => {
-    setIsStreaming(true)
-    setStatus('sending')
+    setIsStreaming(true);
+    setStatus("sending");
 
-    const assistantMessageId = crypto.randomUUID()
-    streamingAssistantId.current = assistantMessageId
+    const assistantMessageId = crypto.randomUUID();
+    streamingAssistantId.current = assistantMessageId;
 
     setMessages((prev) => [
       ...prev,
-      createMessage('user', message),
+      createMessage("user", message),
       {
         id: assistantMessageId,
-        role: 'assistant',
-        content: '',
+        role: "assistant",
+        content: "",
         createdAt: new Date().toISOString(),
-        thinkingLog: '',
+        thinkingLog: "",
         isThinkingOpen: false,
       },
-    ])
+    ]);
 
     try {
-      const token = localStorage.getItem('fin_doc_access_token')
+      const token = localStorage.getItem("fin_doc_access_token");
       const response = await fetch(`${API_BASE_URL}/chat/stream`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({ session_id: sessionId, message }),
-      })
+      });
 
       if (!response.ok || !response.body) {
-        throw new Error('Streaming request failed')
+        throw new Error("Streaming request failed");
       }
 
-      const reader = response.body.getReader()
-      const decoder = new TextDecoder('utf-8')
-      let buffer = ''
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
 
       while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() ?? ''
-        lines.forEach(parseSseLine)
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        lines.forEach(parseSseLine);
       }
     } catch (error) {
-      console.error('Streaming failed', error)
-      setStatus('error')
-      setIsStreaming(false)
-      streamingAssistantId.current = null
+      console.error("Streaming failed", error);
+      setStatus("error");
+      setIsStreaming(false);
+      streamingAssistantId.current = null;
     }
-  }
+  };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    if (!input.trim()) return
-    const message = input.trim()
-    setInput('')
-    await streamChat(message)
-  }
+    event.preventDefault();
+    if (!input.trim()) return;
+    const message = input.trim();
+    setInput("");
+    await streamChat(message);
+  };
 
   const handleDeleteHistory = async () => {
-    if (!conversationId) return
+    if (!conversationId) return;
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/chat/${conversationId}`,
-        { method: 'DELETE' }
-      )
-      if (!response.ok) return
-      setMessages([])
-      setConversationId(null)
-      setStatus(null)
+      const response = await fetch(`${API_BASE_URL}/chat/${conversationId}`, {
+        method: "DELETE",
+      });
+      if (!response.ok) return;
+      setMessages([]);
+      setConversationId(null);
+      setStatus(null);
     } catch (error) {
-      console.error('Failed to delete history', error)
+      console.error("Failed to delete history", error);
     }
-  }
+  };
 
   return (
     <div className="grid min-h-screen grid-cols-1 bg-neutral-950 text-slate-100 lg:grid-cols-[1fr_420px]">
@@ -269,13 +270,23 @@ function App() {
               <p className="mt-1 text-xs text-sky-300">Status: {status}</p>
             )}
           </div>
-          <button
-            className="rounded-full border border-white/20 bg-transparent px-4 py-1.5 text-sm text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
-            onClick={handleDeleteHistory}
-            disabled={!conversationId || isStreaming}
-          >
-            Delete history
-          </button>
+          <div className="flex flex-col items-end gap-2">
+            <button
+              className="rounded-full border border-white/20 px-4 py-1.5 text-sm text-slate-200"
+              onClick={logout}
+              type="button"
+            >
+              Log out
+            </button>
+            <button
+              className="rounded-full border border-white/20 bg-transparent px-4 py-1.5 text-sm text-slate-200 disabled:cursor-not-allowed disabled:opacity-40"
+              onClick={handleDeleteHistory}
+              disabled={!conversationId || isStreaming}
+              type="button"
+            >
+              Delete history
+            </button>
+          </div>
         </header>
 
         <div className="flex-1 overflow-y-auto px-7 py-6">
@@ -289,12 +300,12 @@ function App() {
               <div
                 key={message.id}
                 className={`flex ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
+                  message.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
                 <div
                   className={`max-w-[85%] rounded-2xl border border-white/10 bg-white/10 px-4 py-3 ${
-                    message.role === 'user' ? 'border-blue-600 bg-blue-600' : ''
+                    message.role === "user" ? "border-blue-600 bg-blue-600" : ""
                   }`}
                 >
                   <div className="mb-1 text-[0.65rem] uppercase tracking-[0.2em] text-white/70">
@@ -303,7 +314,7 @@ function App() {
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {message.content}
                   </div>
-                  {message.role === 'assistant' && message.thinkingLog && (
+                  {message.role === "assistant" && message.thinkingLog && (
                     <button
                       type="button"
                       className="mt-3 inline-flex items-center rounded-full border border-white/20 bg-slate-950/50 px-3 py-1 text-[0.7rem] text-slate-200"
@@ -315,19 +326,19 @@ function App() {
                                   ...entry,
                                   isThinkingOpen: !entry.isThinkingOpen,
                                 }
-                              : entry
-                          )
+                              : entry,
+                          ),
                         )
                       }
                     >
                       {message.isThinkingOpen
-                        ? 'Hide thinking'
-                        : 'Show thinking'}
+                        ? "Hide thinking"
+                        : "Show thinking"}
                     </button>
                   )}
-                  {message.role === 'assistant' && message.isThinkingOpen && (
+                  {message.role === "assistant" && message.isThinkingOpen && (
                     <pre className="mt-3 max-h-52 overflow-y-auto whitespace-pre-wrap rounded-xl border border-white/10 bg-slate-950/80 p-3 font-mono text-[0.7rem] text-indigo-200">
-                      {message.thinkingLog || 'No SSE output captured.'}
+                      {message.thinkingLog || "No SSE output captured."}
                     </pre>
                   )}
                 </div>
@@ -354,12 +365,12 @@ function App() {
             type="submit"
             disabled={isSendDisabled}
           >
-            {isStreaming ? 'Streaming...' : 'Send'}
+            {isStreaming ? "Streaming..." : "Send"}
           </button>
         </form>
       </div>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
