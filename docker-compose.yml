@@ -1,0 +1,107 @@
+version: "3.8"
+
+services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: fin-doc-nginx
+    ports:
+      - "80:80"
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - fin-doc-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: fin-doc-frontend
+    environment:
+      - VITE_API_BASE_URL=/api
+    expose:
+      - "5174"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - fin-doc-network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fin-doc-backend
+    environment:
+      - APP_ENV=development
+      - DEBUG=true
+      - LOG_LEVEL=info
+      - DATABASE_URL=postgresql+asyncpg://finuser:finpass@postgres:5432/financial_analyzer
+      - REDIS_URL=redis://redis:6379/0
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4}
+      - CREWAI_VERBOSE=true
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - JWT_ACCESS_TOKEN_EXPIRE_MINUTES=${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - JWT_REFRESH_TOKEN_EXPIRE_DAYS=${JWT_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      - ADMIN_SEED_EMAIL=${ADMIN_SEED_EMAIL}
+      - ADMIN_SEED_NAME=${ADMIN_SEED_NAME}
+      - ADMIN_SEED_PASSWORD=${ADMIN_SEED_PASSWORD}
+    expose:
+      - "8000"
+    volumes:
+      - ./backend/app:/app/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - fin-doc-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: fin-doc-postgres
+    environment:
+      POSTGRES_USER: finuser
+      POSTGRES_PASSWORD: finpass
+      POSTGRES_DB: financial_analyzer
+    ports:
+      - "5431:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finuser -d financial_analyzer"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fin-doc-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: fin-doc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fin-doc-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  fin-doc-network:
+    driver: bridge
