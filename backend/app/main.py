@@ -52,10 +52,22 @@ async def lifespan(app: FastAPI):
     setup_logging()
     logger = structlog.get_logger()
     logger.info("Starting up Financial Document Analyzer API")
+    logger.info(f"[DIAGNOSTIC] Environment: {settings.app_env}")
+    db_url_str = str(settings.database_url)
+    logger.info(f"[DIAGNOSTIC] Full Database URL: {db_url_str}")
+    # Mask password for logging
+    import re
+    masked_url = re.sub(r'://[^:]+:[^@]+@', '://***:***@', db_url_str)
+    logger.info(f"[DIAGNOSTIC] Masked Database URL: {masked_url}")
 
     # Initialize database
-    await init_db()
-    logger.info("Database initialized")
+    try:
+        logger.info("[DIAGNOSTIC] Attempting database initialization...")
+        await init_db()
+        logger.info("Database initialized")
+    except Exception as e:
+        logger.error(f"[DIAGNOSTIC] Database initialization failed: {type(e).__name__}: {e}")
+        raise
 
     # Seed admin user if configured
     async with get_db_context() as db_session:
