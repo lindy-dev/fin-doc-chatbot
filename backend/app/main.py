@@ -9,8 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.cache import close_redis, init_redis
 from app.config import get_settings
-from app.database import close_db, init_db
-from app.routers import chat, health
+from app.database import close_db, get_db_context, init_db
+from app.routers import auth, chat, health
+from app.services.auth_service import ensure_admin_seed
 
 settings = get_settings()
 
@@ -56,6 +57,12 @@ async def lifespan(app: FastAPI):
     await init_db()
     logger.info("Database initialized")
 
+    # Seed admin user if configured
+    async with get_db_context() as db_session:
+        admin = await ensure_admin_seed(db_session)
+        if admin:
+            logger.info("Admin seed ensured", email=admin.email)
+
     # Initialize Redis
     await init_redis()
     logger.info("Redis cache initialized")
@@ -95,6 +102,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(health.router)
+app.include_router(auth.router)
 app.include_router(chat.router)
 
 

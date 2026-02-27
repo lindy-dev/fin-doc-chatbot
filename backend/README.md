@@ -55,6 +55,13 @@ uvicorn app.main:app --reload
 - `GET /chat/history/{session_id}` - Get conversation history
 - `DELETE /chat/{conversation_id}` - Delete conversation
 
+### Auth
+- `POST /auth/register` - Register normal user (pending approval)
+- `POST /auth/login` - Login (blocked until approved)
+- `GET /auth/me` - Current user profile
+- `GET /auth/admin/pending` - List pending users (admin only)
+- `POST /auth/admin/users/{user_id}/approval` - Approve/reject user (admin only)
+
 ### Health
 - `GET /health` - Basic health check
 - `GET /health/db` - Database health
@@ -94,6 +101,13 @@ data: {"type": "complete", "content": "Full response...", "metadata": {...}}
 | `OPENAI_CLASSIFIER_MODEL` | Router model | gpt-4o-mini |
 | `CACHE_TTL_CONVERSATION` | Conversation cache TTL (seconds) | 3600 |
 | `CACHE_TTL_LLM` | LLM response cache TTL (seconds) | 86400 |
+| `JWT_SECRET_KEY` | JWT signing secret | required |
+| `JWT_ALGORITHM` | JWT algorithm | HS256 |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Access token expiry | 30 |
+| `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token expiry | 7 |
+| `ADMIN_SEED_EMAIL` | Seed admin email | optional |
+| `ADMIN_SEED_NAME` | Seed admin name | optional |
+| `ADMIN_SEED_PASSWORD` | Seed admin password | optional |
 
 ## Architecture
 

@@ -20,6 +20,8 @@ from app.schemas.chat import (
     ChatStreamEvent,
 )
 from app.services.chat_service import ChatService
+from app.routers.auth import require_approved_user
+from app.models.user import User
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 settings = get_settings()
@@ -262,6 +264,7 @@ async def chat_stream(
     request: ChatRequest,
     db_session: AsyncSession = Depends(get_db_session),
     cache: CacheService = Depends(get_cache_service),
+    _: User = Depends(require_approved_user),
 ) -> StreamingResponse:
     """Stream chat response using Server-Sent Events.
 
@@ -285,6 +288,7 @@ async def get_chat_history(
     session_id: str,
     db_session: AsyncSession = Depends(get_db_session),
     cache: CacheService = Depends(get_cache_service),
+    _: User = Depends(require_approved_user),
 ) -> ChatHistoryResponse:
     """Get chat history for a session."""
     chat_service = ChatService(db_session, cache)
@@ -305,6 +309,7 @@ async def delete_conversation(
     conversation_id: uuid.UUID,
     db_session: AsyncSession = Depends(get_db_session),
     cache: CacheService = Depends(get_cache_service),
+    _: User = Depends(require_approved_user),
 ) -> dict:
     """Delete a conversation and its messages."""
     chat_service = ChatService(db_session, cache)
